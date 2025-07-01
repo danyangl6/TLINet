@@ -20,8 +20,8 @@ class Clip(torch.autograd.Function):
     @staticmethod
     def forward(ctx, g):
         gs = g.clone()
-        gs[gs>=0] = 1
-        gs[gs<0] = -1
+        gs[gs>0] = 1
+        gs[gs<=0] = -1
         return gs
     @staticmethod
     def backward(ctx, grad_output):
@@ -48,7 +48,7 @@ class Bimodal_reg(object):
                 for i in range(n_row):
                     pi = p[i]
                     r += pi*(1-pi)
-                r_all.append(beta*r)
+                r_all.append((beta*r)/n_row)
             else:
                 n_row = p.shape[0]
                 n_col = p.shape[1]
@@ -57,11 +57,11 @@ class Bimodal_reg(object):
                     for j in range(n_col):
                         pi = p[i,j]
                         r += pi*(1-pi)
-                r_all.append(beta*r)
+                r_all.append((beta*r)/(n_row*n_col))
         return torch.stack(r_all).mean(dim=0)
     
 
-class L2_reg(object):
+class L1_reg(object):
     def __init__(self, beta_list):
         '''
         beta_list is a list containing the weight for each probability regularizer
@@ -74,7 +74,7 @@ class L2_reg(object):
             raise TypeError('Please specify weight for each layer!')
         r_all = 0
         for _, (beta,p) in enumerate(zip(self.beta_list, p_list)):
-            r_all += beta*torch.mean(torch.square(p))
+            r_all += beta*torch.sum(p)
         return r_all
 
 
@@ -119,8 +119,6 @@ class SparseSoftMax(object):
         dim = self.dim
         if len(w.shape)>1:
             raise ValueError('Dimension of weight is invalid!')
-        if dim != len(x.shape)-1:
-            raise ValueError('Invalid operation!')
         w_sum = w.sum()
         if w_sum == 0:
             w_norm = w
@@ -175,8 +173,6 @@ class AveragedMax(object):
         p is a one-dimensional vector. 
         '''
         dim = self.dim
-        if dim != len(x.shape)-1:
-            raise ValueError('Invalid operation! Dimension mismatch!')
         xs, pindex = torch.sort(x,dim=dim,descending=True)
         psort = p[pindex]
         pw = self.prob(psort)

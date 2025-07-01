@@ -1,3 +1,0 @@
-'''
-Case Study: Periodic Signal
-'''
